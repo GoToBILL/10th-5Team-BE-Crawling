@@ -4,6 +4,10 @@ import time
 import boto3
 import json
 import os
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 sqs = boto3.client('sqs')
 QUEUE_URL = os.environ.get('QUEUE_URL')
@@ -52,6 +56,7 @@ def send_to_sqs(data: dict):
         QueueUrl=QUEUE_URL,
         MessageBody=json.dumps(data)
     )
+    logger.info(f"SQS(Main To Saving RDS) - {response}")
     return response
 
 
@@ -71,6 +76,7 @@ def crawl_target(driver, url: str, campaign_type: str):
             cnt += 1
         except Exception as e:
             err_cnt += 1
+            logger.error(f"[ERROR] ({campaign_type}) Card #{idx} 처리 실패: {e}")
 
     return cnt, err_cnt
 
@@ -89,7 +95,9 @@ def run(driver):
 
     total_cnt, total_err_cnt = 0, 0
     for target in targets:
+        logger.info(f"▶ 크롤링 시작: {target['type']} 캠페인")
         cnt, err_cnt = crawl_target(driver, target["url"], target["type"])
+        logger.info(f"  ⤷ 완료: {cnt}개 / 실패: {err_cnt}개")
         total_cnt += cnt
         total_err_cnt += err_cnt
 
