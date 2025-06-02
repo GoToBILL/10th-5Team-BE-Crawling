@@ -21,7 +21,7 @@ COPY --from=stage /opt/chrome /opt/chrome
 COPY --from=stage /opt/chromedriver /opt/chromedriver
 
 # copy crawler.py
-COPY crawler.py /var/task/
+COPY crawler.py crawler_sites /var/task/
 
 WORKDIR /var/task
 
