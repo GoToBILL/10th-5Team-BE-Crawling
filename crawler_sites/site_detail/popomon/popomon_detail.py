@@ -123,7 +123,7 @@ def extract_campaign_details(html_content):
     #     return False
 
 
-def process_campaign(driver, campaign_data):
+def run(driver, campaign_data):
     """단일 캠페인 세부 정보 처리"""
     try:
         title = campaign_data.get('title', 'Unknown')

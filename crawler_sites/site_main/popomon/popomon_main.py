@@ -12,32 +12,22 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 sqs = boto3.client('sqs')
-QUEUE_URL = os.environ.get('QUEUE_URL')
+QUEUE_URL = os.environ.get('MAIN_TO_DETAIL_QUEUE_URL')
 
 
-def scroll_to_end(driver, max_scrolls=70):
-    """페이지 끝까지 스크롤"""
-    logger.info("페이지 스크롤 시작...")
-    prev_height = driver.execute_script("return document.body.scrollHeight")
-    scroll_count = 0
-    
-    while scroll_count < max_scrolls:
+def scroll_to_bottom(driver):
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(1.8)
-        
+        time.sleep(1)
         new_height = driver.execute_script("return document.body.scrollHeight")
-        scroll_count += 1
-        
-        if scroll_count % 10 == 0:
-            logger.info(f"스크롤 진행: {scroll_count}/{max_scrolls}")
-        
-        if new_height == prev_height:
-            logger.info("페이지 끝에 도달함")
-            break
-            
-        prev_height = new_height
-    
-    logger.info("스크롤 완료")
+        if new_height == last_height:
+            time.sleep(2)
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            new_height = driver.execute_script("return document.body.scrollHeight")
+            if new_height == last_height:
+                break
+        last_height = new_height
 
 
 def extract_campaign_links(html_content):
@@ -117,7 +107,7 @@ def crawl_target(driver, url, campaign_type):
         )
         
         # 페이지 끝까지 스크롤
-        scroll_to_end(driver)
+        scroll_to_bottom(driver)
         
         time.sleep(1)
         
