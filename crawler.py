@@ -119,7 +119,7 @@ def crawler_target(site_name, page_source, records=None):
 
     try:
         # 동적 import로 사이트별 모듈 로드
-        module = importlib.import_module(f"site_{page_source}.{site_name}.{site_name}_{page_source}")
+        module = importlib.import_module(f"{site_name}.{site_name}_{page_source}")
         if page_source == "detail":
             # detail 모드에서는 SQS records 처리
             if records:
