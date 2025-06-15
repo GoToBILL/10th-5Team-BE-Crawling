@@ -22,6 +22,7 @@ COPY --from=stage /opt/chromedriver /opt/chromedriver
 
 # copy crawler.py
 COPY crawler.py crawler_sites /var/task/
+COPY lambda-to-rds /var/task/
 
 WORKDIR /var/task
 
