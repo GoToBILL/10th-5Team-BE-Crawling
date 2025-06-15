@@ -29,6 +29,29 @@ def handler(event=None, context=None):
         }
 
     try:
+        # RDS 처리 추가
+        if page_source == "rds":
+            records = event.get('Records', [])
+            
+            if not records:
+                logger.warning("SQS 메시지가 없습니다.")
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'message': 'No SQS records found'})
+                }
+            
+            success_count, error_count = process_rds_records(records)
+            
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': f'RDS 처리 완료 - 성공: {success_count}, 실패: {error_count}',
+                    'success_count': success_count,
+                    'error_count': error_count
+                })
+            }
+        
+        
         # detail 모드인 경우 SQS Records 처리
         if page_source == "detail":
             records = event.get('Records', [])
@@ -86,6 +109,30 @@ def get_chrome_driver():
     service = Service(executable_path="/opt/chromedriver")
     return webdriver.Chrome(service=service, options=chrome_options)
 
+
+def process_rds_records(records):
+    """RDS SQS Records 처리 로직"""
+    try:
+        # 실제 import 시도
+        rds_module = importlib.import_module("campaign_repository_bj")
+        
+        # 나머지 로직...
+        event = {'Records': records}
+        result = rds_module.lambda_handler(event, None)
+        
+        if result.get('statusCode') == 200:
+            body = json.loads(result.get('body', '{}'))
+            return body.get('success_count', 0), body.get('error_count', 0)
+        else:
+            logger.error(f"RDS 처리 실패: {result}")
+            return 0, len(records)
+        
+    except ModuleNotFoundError as e:
+        logger.error(f"RDS 처리 모듈을 찾을 수 없습니다: {e}")
+        return 0, len(records)
+    except Exception as e:
+        logger.error(f"RDS 처리 중 오류: {e}")
+        return 0, len(records)
 
 def process_sqs_records(module, driver, records):
     """SQS Records 처리 로직"""
