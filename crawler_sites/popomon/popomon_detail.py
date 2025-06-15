@@ -14,7 +14,7 @@ logger.setLevel(logging.INFO)
 
 # SQS 클라이언트 (RDS 처리용)
 sqs = boto3.client('sqs')
-#RDS_QUEUE_URL = os.environ.get('RDS_QUEUE_URL')  # RDS 처리용 SQS 큐
+RDS_QUEUE_URL = os.environ.get('RDS_QUEUE_URL')  # RDS 처리용 SQS 큐
 
 
 def get_page_content_with_selenium(driver, url):
@@ -62,42 +62,16 @@ def extract_campaign_details(html_content):
                     field_name = b_tag.text.strip()
                     field_value = span_tag.text.strip() if span_tag else ""
                     
-                    # 주요 필드 매핑
+                    # 주요 필드 매핑 (영문 키로 통일)
                     if '협찬 상품' in field_name:
-                        campaign_details['제공내역'] = field_value
+                        campaign_details['benefit'] = field_value
                     elif '모집 및 선정 기간' in field_name:
-                        campaign_details['신청기간'] = field_value
+                        campaign_details['application_period'] = field_value
                     elif '리뷰 제출 마감일' in field_name:
-                        campaign_details['등록기간'] = field_value
+                        campaign_details['review_deadline'] = field_value
         
-        # 모집 인원 정보 추출
-        recruit_info = None
-        
-        # 방법 1: 클래스명의 일부로 검색
-        for span in soup.find_all('span'):
-            if span.has_attr('class') and any('text-[#949494]' in cls for cls in span['class']):
-                recruit_info = span
-                break
-        
-        # 방법 2: "신청" 텍스트가 포함된 span 찾기
-        if not recruit_info:
-            for span in soup.find_all('span'):
-                if '신청' in span.text and '명' in span.text:
-                    recruit_info = span
-                    break
-        
-        # 모집인원 처리
-        if recruit_info:
-            recruit_text = recruit_info.text.strip()
-            if '신청' in recruit_text and '명' in recruit_text:
-                # "신청 X / Y명" 형식에서 숫자 추출
-                match = re.search(r'신청\s*(\d+)\s*/\s*(\d+)명', recruit_text)
-                if match:
-                    campaign_details['신청인원'] = match.group(1)
-                    campaign_details['모집인원'] = match.group(2)
-        
-        # 추가 정보 추출 (필요시)
-        # 우대사항, 플랫폼 정보 등
+        # 플랫폼 정보 & 지역 정보 추출 (일단 플로우 확인 후에 나중에 추가)
+
         
     except Exception as e:
         logger.error(f"상세 정보 추출 중 오류: {e}")
@@ -105,26 +79,26 @@ def extract_campaign_details(html_content):
     return campaign_details
 
 
-# def send_to_rds_queue(campaign_data):
-    # """RDS 처리용 SQS로 데이터 전송"""
-    # if not RDS_QUEUE_URL:
-    #     logger.warning("RDS_QUEUE_URL이 설정되지 않음. RDS 전송 건너뜀.")
-    #     return False
+def send_to_rds_queue(campaign_data):
+    """RDS 처리용 SQS로 데이터 전송"""
+    if not RDS_QUEUE_URL:
+        logger.warning("RDS_QUEUE_URL이 설정되지 않음. RDS 전송 건너뜀.")
+        return False
         
-    # try:
-    #     response = sqs.send_message(
-    #         QueueUrl=RDS_QUEUE_URL,
-    #         MessageBody=json.dumps(campaign_data, ensure_ascii=False)
-    #     )
-    #     logger.info(f"RDS 큐로 전송 완료: {campaign_data.get('title', 'Unknown')}")
-    #     return True
-    # except Exception as e:
-    #     logger.error(f"RDS 큐 전송 실패: {e}")
-    #     return False
+    try:
+        response = sqs.send_message(
+            QueueUrl=RDS_QUEUE_URL,
+            MessageBody=json.dumps(campaign_data, ensure_ascii=False)
+        )
+        logger.info(f"RDS 큐로 전송 완료: {campaign_data.get('title', 'Unknown')}")
+        return True
+    except Exception as e:
+        logger.error(f"RDS 큐 전송 실패: {e}")
+        return False
 
 
 def run(driver, campaign_data):
-    """단일 캠페인 세부 정보 처리"""
+    """단일 캠페인 세부 정보 처리 - 하나씩 바로 처리"""
     try:
         title = campaign_data.get('title', 'Unknown')
         detail_url = campaign_data.get('detail_url', '')
@@ -133,7 +107,7 @@ def run(driver, campaign_data):
             logger.error(f"URL이 없는 캠페인: {title}")
             return False
         
-        logger.info(f"🔍 포포몬 세부 크롤링 시작: {title}")
+        logger.info(f"포포몬 세부 크롤링 시작: {title}")
         
         # 세부 페이지 크롤링
         detail_html = get_page_content_with_selenium(driver, detail_url)
@@ -147,17 +121,28 @@ def run(driver, campaign_data):
         # 기존 데이터와 병합
         final_data = {**campaign_data, **details}
         
-        # 결과 출력 (확인용)
-        logger.info(f"크롤링 완료: {title}")
-        logger.info(f"추출된 정보:")
-        for key, value in details.items():
-            logger.info(f"   - {key}: {value}")
+        # page_flag를 detail로 변경
+        final_data['page_flag'] = 'detail'
         
-        # RDS 처리용 SQS로 전송
-        #send_to_rds_queue(final_data)
+        # 추출된 정보 로깅
+        logger.info(f"상세 정보 추출 완료: {title}")
+        if details:
+            for key, value in details.items():
+                logger.info(f"   - {key}: {value}")
+        else:
+            logger.warning(f"상세 정보 추출 실패 또는 없음: {title}")
         
-        return True
+        # RDS 처리용 SQS로 즉시 전송
+        success = send_to_rds_queue(final_data)
+        
+        if success:
+            logger.info(f"디테일 처리 완료: {title}")
+        else:
+            logger.error(f"RDS Queue 전송 실패: {title}")
+        
+        return success
         
     except Exception as e:
         logger.error(f"캠페인 처리 중 오류: {e}")
+        logger.error(f"오류 발생 캠페인: {campaign_data}")
         return False
