@@ -15,7 +15,7 @@ def get_connection():
 
 def insert_main_campaign(cursor, data):
     """메인 페이지에서 Lambda 크롤링 결과 넘어온 Case"""
-    # TODO: 포블로그는 예외처리 필요(신청/모집 인원 수 파악 불가) - 이 로직이면 크롤링 시 0명으로 초기화됨
+
     platform_fields = ['blog', 'clip', 'insta', 'reels', 'youtube', 'shorts', 'tiktok', 'etc']
     platforms = set(data.get('platforms', []))
 

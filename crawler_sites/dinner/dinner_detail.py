@@ -23,15 +23,15 @@ def get_page_content_with_selenium(driver, url):
         logger.info(f"페이지 로드 중: {url}")
         driver.get(url)
         
-        time.sleep(1.2)
+        time.sleep(2)
         
-        # 캠페인 정보가 로드될 때까지 대기
+        # 페이지가 로드될 때까지 대기
         try:
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.ID, "campInfo"))
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
         except:
-            logger.warning("campInfo 요소를 찾을 수 없습니다. 페이지 전체 소스를 반환합니다.")
+            logger.warning("페이지 로드 대기 실패. 페이지 전체 소스를 반환합니다.")
         
         html_content = driver.page_source
         return html_content
@@ -42,7 +42,7 @@ def get_page_content_with_selenium(driver, url):
 
 
 def extract_campaign_details(html_content):
-    """HTML에서 캠페인 상세 정보 추출"""
+    """HTML에서 캠페인 상세 정보 추출 (디너의여왕 구조)"""
     if not html_content:
         return {}
     
@@ -50,32 +50,30 @@ def extract_campaign_details(html_content):
     campaign_details = {}
 
     try:
-        # 캠페인 정보 섹션
-        camp_info = soup.find(id='campInfo')
-        if camp_info:
-            # 모든 li 요소 확인
-            for li in camp_info.find_all('li'):
-                b_tag = li.find('b')
-                span_tag = li.find('span')
-                
-                if b_tag:
-                    field_name = b_tag.text.strip()
-                    field_value = span_tag.text.strip() if span_tag else ""
-                    
-                    # 주요 필드 매핑 (영문 키로 통일)
-                    if '협찬 상품' in field_name:
-                        campaign_details['benefit'] = field_value
-                    elif '모집 및 선정 기간' in field_name:
-                        # 예: "25.05.29 ~ 25.06.28 (상시 선정)"
-                        period_match = re.search(r'(\d{2}\.\d{2}\.\d{2})\s*~\s*(\d{2}\.\d{2}\.\d{2})', field_value)
-                        if period_match:
-                            campaign_details['application_startdate'] = period_match.group(1)
-                            campaign_details['application_enddate'] = period_match.group(2)
-                    elif '리뷰 제출 마감일' in field_name:
-                        campaign_details['review_deadline'] = field_value
+        # 날짜 컨테이너에서 순서대로 추출
+        date_elems = soup.select('p.qz-body-kr--line')
         
-        # 플랫폼 정보 & 지역 정보 추출 (일단 플로우 확인 후에 나중에 추가)
-
+        if len(date_elems) >= 3:
+            # 첫 번째: 신청기간 (25.06.11 – 25.06.17)
+            first_text = date_elems[0].text.strip()
+            if '–' in first_text:
+                dates = first_text.split('–')
+                if len(dates) == 2:
+                    campaign_details['application_startdate'] = dates[0].strip()
+                    campaign_details['application_enddate'] = dates[1].strip()
+            
+            # 두 번째: 발표일 (25.06.18)
+            second_text = date_elems[1].text.strip()
+            campaign_details['selection_date'] = second_text
+            
+            # 세 번째: 체험&리뷰 (25.06.19 – 25.07.03)
+            third_text = date_elems[2].text.strip()
+            if '–' in third_text:
+                dates = third_text.split('–')
+                if len(dates) == 2:
+                    campaign_details['review_deadline'] = dates[1].strip()
+            else:
+                campaign_details['review_deadline'] = third_text
         
     except Exception as e:
         logger.error(f"상세 정보 추출 중 오류: {e}")
@@ -111,7 +109,7 @@ def run(driver, campaign_data):
             logger.error(f"URL이 없는 캠페인: {title}")
             return False
         
-        logger.info(f"포포몬 세부 크롤링 시작: {title}")
+        logger.info(f"디너의여왕 세부 크롤링 시작: {title}")
         
         # 세부 페이지 크롤링
         detail_html = get_page_content_with_selenium(driver, detail_url)
@@ -128,6 +126,7 @@ def run(driver, campaign_data):
         # page_flag를 detail로 변경
         final_data['page_flag'] = 'detail'
 
+        
         # 추출된 정보 로깅
         logger.info(f"상세 정보 추출 완료: {title}")
         if details:
