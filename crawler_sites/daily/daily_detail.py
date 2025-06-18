@@ -84,15 +84,16 @@ def extract_campaign_details(html_content):
                 if '리뷰어 신청' in label:
                     start_date, end_date = parse_date_range(value)
                     if start_date and end_date:
-                        campaign_details['application_startdate'] = start_date
-                        campaign_details['application_enddate'] = end_date
+                        campaign_details['apply_startdate'] = start_date
+                        campaign_details['apply_enddate'] = end_date
                         logger.info(f"신청 기간: {start_date} ~ {end_date}")
                 
                 # 리뷰등록 기간 -> review_deadline (종료일만)
                 elif '리뷰등록' in label:
                     start_date, end_date = parse_date_range(value)
                     if end_date:
-                        campaign_details['review_deadline'] = end_date
+                        campaign_details['content_submission_start'] = start_date
+                        campaign_details['content_submission_end'] = end_date
                         logger.info(f"리뷰 마감일: {end_date}")
         
         # 제공 내역 추출 -> benefit

@@ -21,7 +21,9 @@ def get_page_content_with_selenium(driver, url):
         logger.info(f"페이지 로드 중: {url}")
         driver.get(url)
         time.sleep(1.2)
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, "campInfo")))
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "cmp_info"))
+        )
         return driver.page_source
     except Exception as e:
         logger.error(f"페이지 가져오기 실패: {e}")
@@ -35,34 +37,59 @@ def extract_campaign_details(html_content):
     campaign_details = {}
 
     try:
-        camp_info = soup.find(id='campInfo')
-        if camp_info:
-            for li in camp_info.find_all('li'):
-                b_tag = li.find('b')
-                span_tag = li.find('span')
-                if b_tag:
-                    field_name = b_tag.text.strip()
-                    field_value = span_tag.text.strip() if span_tag else ""
+        cmp_info = soup.find('div', class_='cmp_info')
+        if cmp_info:
+            print("cmp_info 처리")
+            for li in cmp_info.find_all('li'):
+                dt_tag = li.find('dt')
+                dd_tag = li.find('dd')
+                if dt_tag and dd_tag:
+                    field_name = dt_tag.text.strip()
+                    field_value = dd_tag.text.strip()
+                    
+                    print(f"필드 발견: {field_name} = {field_value}")
 
-                    if '협찬 상품' in field_name:
-                        campaign_details['benefit'] = field_value
-
-                    elif '모집 및 선정 기간' in field_name:
-                        period_match = re.search(r'(\d{2}\.\d{2}\.\d{2})\s*~\s*(\d{2}\.\d{2}\.\d{2})', field_value)
+                    if '캠페인 신청기간' in field_name:
+                        # "06.18 ~ 06.24" 형식 처리
+                        period_match = re.search(r'(\d{2}\.\d{2})\s*~\s*(\d{2}\.\d{2})', field_value)
                         if period_match:
-                            campaign_details['application_startdate'] = period_match.group(1)
-                            campaign_details['application_enddate'] = period_match.group(2)
+                            campaign_details['apply_startdate'] = f"25.{period_match.group(1)}"
+                            campaign_details['apply_enddate'] = f"25.{period_match.group(2)}"
+                    elif '리뷰 등록기간' in field_name:
+                        period_match = re.search(r'(\d{2}\.\d{2})\s*~\s*(\d{2}\.\d{2})', field_value)
+                        if period_match:
+                            campaign_details['content_submission_start'] = f"25.{period_match.group(1)}"
+                            campaign_details['content_submission_end'] = f"25.{period_match.group(2)}"
+                    elif '리뷰어 발표' in field_name:
+                        if re.search(r'\d{2}\.\d{2}', field_value):
+                            campaign_details['reviewer_announcement'] = f"25.{field_value.strip()}"
+                    elif '캠페인 결과발표' in field_name:
+                        if re.search(r'\d{2}\.\d{2}', field_value):
+                            campaign_details['result_date'] = f"25.{field_value.strip()}"
+        else:
+            print("cmp_info 클래스를 찾을 수 없습니다")
 
-                    elif '리뷰 제출 마감일' in field_name:
-                        campaign_details['review_deadline'] = field_value
-
-                    elif '신청' in field_name and '명' in field_value:
-                        nums = re.findall(r'\d+', field_value.replace(',', ''))
-                        if len(nums) >= 2:
-                            applicants = int(nums[0])
-                            recruits = int(nums[1])
-                            campaign_details['applicant_count'] = applicants
-                            campaign_details['recruit_count'] = recruits
+        address_found = False
+        # div 내부의 span 요소들을 검색
+        address_regex = re.compile(r'([가-힣]+시\s*[가-힣]+(구|군)?\s*[가-힣0-9]+(동|읍|면)?\s*\d+[\-\d]*(?:\s*\d+층)?)')
+        
+        for tag in soup.find_all(['span', 'div', 'p', 'li']):
+            text = tag.get_text(strip=True)
+            if not text or len(text) < 7 or len(text) > 100:
+                continue
+            
+            match = address_regex.search(text)
+            if match:
+                address = match.group(1).strip()
+                campaign_details['address'] = address
+                address_found = True
+                print(f"주소 발견: {address}")
+                break
+    
+        
+        if not address_found:
+            campaign_details['address'] = None
+            print("주소 정보를 찾을 수 없습니다")
 
     except Exception as e:
         logger.error(f"상세 정보 추출 중 오류: {e}")

@@ -69,11 +69,19 @@ def extract_campaign_details(html_content):
                         # 예: "25.05.29 ~ 25.06.28 (상시 선정)"
                         period_match = re.search(r'(\d{2}\.\d{2}\.\d{2})\s*~\s*(\d{2}\.\d{2}\.\d{2})', field_value)
                         if period_match:
-                            campaign_details['application_startdate'] = period_match.group(1)
-                            campaign_details['application_enddate'] = period_match.group(2)
+                            campaign_details['apply_startdate'] = period_match.group(1)
+                            campaign_details['apply_enddate'] = period_match.group(2)
                     elif '리뷰 제출 마감일' in field_name:
-                        campaign_details['review_deadline'] = field_value
-        
+                        campaign_details['content_submission_end'] = field_value
+        # 주소 정보 추출 - 두 번째 요소 선택
+        address_spans = soup.find_all('span', class_='w-[calc(100%_-_20px)] flex flex-wrap')
+        if len(address_spans) >= 2 and address_spans[1].text.strip():
+            campaign_details['address'] = address_spans[1].text.strip()
+        elif len(address_spans) >= 1 and address_spans[0].text.strip():
+            # 두 번째가 없으면 첫 번째라도
+            campaign_details['address'] = address_spans[0].text.strip()
+        else:
+            campaign_details['address'] = None  
         # 플랫폼 정보 & 지역 정보 추출 (일단 플로우 확인 후에 나중에 추가)
 
         

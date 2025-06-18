@@ -35,15 +35,16 @@ def insert_main_campaign(cursor, data):
     
     sql = f"""
         INSERT INTO campaigns (
-            title, detail_url, benefit, source_site,
-            applicant_count, recruit_count, campaign_type,
+            title, detail_url,benefit, source_site,
+            applicant_count, recruit_count, competition_rate, campaign_type,
             {', '.join(platform_fields)}
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, {', '.join(['%s'] * len(platform_fields))})
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, {', '.join(['%s'] * len(platform_fields))})
         ON DUPLICATE KEY UPDATE
             detail_url = VALUES(detail_url),
             applicant_count = VALUES(applicant_count),
             recruit_count = VALUES(recruit_count),
+            competition_rate = VALUES(competition_rate),
             updated_at = CURRENT_TIMESTAMP
     """
     
@@ -54,6 +55,7 @@ def insert_main_campaign(cursor, data):
         data.get('source_site'),
         data.get('applicant_count'),
         data.get('recruit_count'),
+        data.get('competition_rate'),
         CAMPAIGN_TYPE_MAP.get(data.get('campaign_type')),
         *platform_values
     ]
@@ -74,26 +76,31 @@ def insert_detail_campaign(cursor, data):
     # 모든 가능한 필드를 포함한 INSERT문
     sql = f"""
         INSERT INTO campaigns (
-            title, detail_url, benefit, source_site,
-            applicant_count, recruit_count, campaign_type,
-            application_period, review_deadline, requirements,
-            announcement_date, event_period,
+            title, detail_url, benefit,
+            apply_start, apply_end, reviewer_announcement,
+            content_submission_start, content_submission_end, result_announcement,
+            applicant_count, recruit_count, source_site,
+            is_active, campaign_type, address, competition_rate,
             {', '.join(platform_fields)}
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, {', '.join(['%s'] * len(platform_fields))})
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, {', '.join(['%s'] * len(platform_fields))})
         ON DUPLICATE KEY UPDATE
             title = VALUES(title),
             detail_url = VALUES(detail_url),
             benefit = VALUES(benefit),
-            source_site = VALUES(source_site),
+            apply_start = VALUES(apply_start),
+            apply_end = VALUES(apply_end),
+            reviewer_announcement = VALUES(reviewer_announcement),
+            content_submission_start = VALUES(content_submission_start),
+            content_submission_end = VALUES(content_submission_end),
+            result_announcement = VALUES(result_announcement),
             applicant_count = VALUES(applicant_count),
             recruit_count = VALUES(recruit_count),
+            source_site = VALUES(source_site),
+            is_active = VALUES(is_active),
             campaign_type = VALUES(campaign_type),
-            application_period = VALUES(application_period),
-            review_deadline = VALUES(review_deadline),
-            requirements = VALUES(requirements),
-            announcement_date = VALUES(announcement_date),
-            event_period = VALUES(event_period),
+            address = VALUES(address),
+            competition_rate = VALUES(competition_rate),
             {', '.join([f"{p} = VALUES({p})" for p in platform_fields])},
             updated_at = CURRENT_TIMESTAMP
     """
@@ -102,20 +109,25 @@ def insert_detail_campaign(cursor, data):
         data.get('title'),
         data.get('detail_url'),
         data.get('benefit'),
-        data.get('source_site'),
+        data.get('apply_startdate'),
+        data.get('apply_enddate'),
+        data.get('reviewer_announcement'),
+        data.get('content_submission_start'),
+        data.get('content_submission_end'),
+        data.get('result_announcement'),
         data.get('applicant_count'),
         data.get('recruit_count'),
+        data.get('source_site'),
+        1,  # is_active
         CAMPAIGN_TYPE_MAP.get(data.get('campaign_type')),
-        data.get('application_period'),
-        data.get('review_deadline'),
-        data.get('requirements'),
-        data.get('announcement_date'),
-        data.get('event_period'),
+        data.get('address'),
+        data.get('competition_rate'),
         *platform_values
     ]
     
     cursor.execute(sql, values)
     logger.info(f"상세 캠페인 DB 처리 완료 ({source_site}): {title}")
+
 
 def insert_campaign(data):
     """캠페인 데이터 DB 삽입 메인 함수"""

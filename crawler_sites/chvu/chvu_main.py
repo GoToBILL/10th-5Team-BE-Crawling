@@ -95,7 +95,18 @@ def parse_campaign_info(card, current_category):
         for selector in title_selectors:
             try:
                 title_elem = card.find_element(By.CSS_SELECTOR, selector)
-                data['title'] = title_elem.text.strip()
+                full_title = title_elem.text.strip()
+                
+                # 대괄호 안의 지역 정보 추출
+                region_match = re.search(r'\[(.*?)\]', full_title)
+                if region_match:
+                    data['address'] = region_match.group(1).strip()  # [서울/양천] -> 서울/양천
+                    # 제목에서 대괄호 부분 제거
+                    data['title'] = re.sub(r'\[.*?\]\s*', '', full_title).strip()  # 나다피트니스
+                else:
+                    # 대괄호가 없으면 배송형 - 전체 텍스트를 title로
+                    data['address'] = None
+                    data['title'] = full_title
                 break
             except NoSuchElementException:
                 continue
@@ -262,7 +273,7 @@ def run(driver):
                 driver.refresh()
                 logger.info(f"페이지 리프레시 후 {label} 선택자 클릭 시도")
             
-            time.sleep(3)
+            time.sleep(2)
             
             # 카테고리 버튼 클릭
             logger.info(f"선택자 클릭 시도: {label}")
@@ -272,7 +283,7 @@ def run(driver):
             for btn in buttons:
                 if label in btn.text:
                     btn.click()
-                    time.sleep(2)
+                    time.sleep(1)
                     clicked = True
                     logger.info(f"{label} 버튼 클릭 완료")
                     break

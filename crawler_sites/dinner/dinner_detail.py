@@ -59,21 +59,48 @@ def extract_campaign_details(html_content):
             if '–' in first_text:
                 dates = first_text.split('–')
                 if len(dates) == 2:
-                    campaign_details['application_startdate'] = dates[0].strip()
-                    campaign_details['application_enddate'] = dates[1].strip()
+                    campaign_details['apply_startdate'] = dates[0].strip()
+                    campaign_details['apply_enddate'] = dates[1].strip()
             
             # 두 번째: 발표일 (25.06.18)
             second_text = date_elems[1].text.strip()
-            campaign_details['selection_date'] = second_text
+            campaign_details['reviewer_announcement'] = second_text
             
             # 세 번째: 체험&리뷰 (25.06.19 – 25.07.03)
             third_text = date_elems[2].text.strip()
             if '–' in third_text:
                 dates = third_text.split('–')
                 if len(dates) == 2:
-                    campaign_details['review_deadline'] = dates[1].strip()
+                    campaign_details['content_submission_start'] = dates[0].strip()
+                    campaign_details['content_submission_end'] = dates[1].strip()
             else:
-                campaign_details['review_deadline'] = third_text
+                campaign_details['content_submission_end'] = third_text
+                
+                address_found = False
+        
+        # "방문 위치" 텍스트가 포함된 p 태그 찾기
+        visit_location_found = False
+        for p_tag in soup.find_all('p'):
+            if '방문 위치' in p_tag.text:
+                visit_location_found = True
+                print("방문형 캠페인 감지 - 주소 추출 시작")
+                
+                # 주소 추출
+                address_text = p_tag.get_text()
+                if ':' in address_text:
+                    address = address_text.split(':', 1)[1].strip()
+                    if address:  # 빈 문자열이 아닌 경우에만
+                        campaign_details['address'] = address
+                        address_found = True
+                        print(f"방문 위치 발견: {address}")
+                break
+        
+        if not visit_location_found:
+            print("배송형 캠페인 감지 - 주소 추출 생략")
+            campaign_details['address'] = None
+        elif visit_location_found and not address_found:
+            print("방문형이지만 주소 추출 실패")
+            campaign_details['address'] = None
         
     except Exception as e:
         logger.error(f"상세 정보 추출 중 오류: {e}")

@@ -73,9 +73,21 @@ def parse_campaign_info(item, current_category):
         # 제목 추출
         name_elem = item.select_one('.it_name')
         if name_elem:
-            data['title'] = name_elem.text.strip()
+            full_title = name_elem.text.strip()
+            
+            # 대괄호 안의 지역 정보 추출
+            region_match = re.search(r'\[(.*?)\]', full_title)
+            if region_match:
+                data['address'] = region_match.group(1).strip()  # [경상 김해] -> 경상 김해
+                # 제목에서 대괄호 부분 제거
+                data['title'] = re.sub(r'\[.*?\]\s*', '', full_title).strip()
+            else:
+                data['address'] = None
+                data['title'] = full_title
         else:
             data['title'] = "제목 없음"
+            data['address'] = None
+
 
         # SNS 타입 추출
         sns_icon = item.select_one('.option_re i.blog')
@@ -297,7 +309,3 @@ def run():
     
     logger.info(f"데일리뷰 크롤링 완료 - 총 성공: {total_success}개, 실패: {total_error}개")
     return total_success, total_error
-
-
-if __name__ == "__main__":
-    run()

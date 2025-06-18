@@ -60,19 +60,19 @@ def extract_campaign_details(html_content):
                 # 모집시작일 추출
                 start_match = re.search(r'모집시작일\s*(\d{2}\.\d{2}\.\d{2})', text)
                 if start_match:
-                    campaign_details['application_startdate'] = start_match.group(1)
+                    campaign_details['apply_startdate'] = start_match.group(1)
                     logger.info(f"모집시작일: {start_match.group(1)}")
                 
                 # 모집마감일 추출
                 end_match = re.search(r'모집마감일\s*(\d{2}\.\d{2}\.\d{2})', text)
                 if end_match:
-                    campaign_details['application_enddate'] = end_match.group(1)
+                    campaign_details['apply_enddate'] = end_match.group(1)
                     logger.info(f"모집마감일: {end_match.group(1)}")
                 
                 # 리뷰마감일 추출
                 review_match = re.search(r'리뷰마감일\s*(\d{2}\.\d{2}\.\d{2})', text)
                 if review_match:
-                    campaign_details['review_deadline'] = review_match.group(1)
+                    campaign_details['content_submission_end'] = review_match.group(1)
                     logger.info(f"리뷰마감일: {review_match.group(1)}")
         
         # 2. 혜택(benefit) 추출
