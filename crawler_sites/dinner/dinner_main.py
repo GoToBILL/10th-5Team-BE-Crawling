@@ -258,8 +258,8 @@ def run(driver):
     """
     targets = [
         {
-            "type": "전체",
-            "url": "https://dinnerqueen.net/taste?ct=%EC%A0%84%EC%B2%B4"
+            "type": "지역",
+            "url": "https://dinnerqueen.net/taste?ct=%EC%A7%80%EC%97%AD"
         },
         {
             "type": "배송", 
