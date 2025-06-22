@@ -34,7 +34,7 @@ def parse_remaining_days(text):
     if not text:
         return None
     text = text.strip()
-    if "오늘 마감" in text or "시간 남음" in text:
+    if "오늘 마감" in text or "시간 남음" in text or "마감임박" in text:
         return 0
     match = re.search(r'(\d+)\s*일', text)
     return int(match.group(1)) if match else None
@@ -45,7 +45,11 @@ def extract_campaign_info(link, idx, campaign_type):
         return None
 
     full_link = f"https://xn--939au0g4vj8sq.net{href}"
-    title = link.text.strip() or f"캠페인_{idx}"
+    
+    # 제목 추출 개선
+    title = link.get_text(strip=True)
+    if not title:
+        title = f"캠페인_{idx}"
 
     campaign = {
         'title': title,
@@ -73,7 +77,7 @@ def extract_campaign_info(link, idx, campaign_type):
                     campaign['applicant_count'] = int(numbers[0].replace(',', ''))
                     campaign['recruit_count'] = int(numbers[1].replace(',', ''))
                     
-        if campaign.get('recruit_count') != 0:
+        if campaign.get('recruit_count') is not None and campaign.get('recruit_count') != 0 and campaign.get('applicant_count') is not None:
             campaign['competition_rate'] = round(campaign.get('applicant_count') / campaign.get('recruit_count'), 2)
 
         if campaign['remaining_days'] is not None and campaign['applicant_count'] is not None:
@@ -84,7 +88,9 @@ def extract_campaign_info(link, idx, campaign_type):
 
 def extract_and_process_campaigns(html_content, campaign_type):
     soup = BeautifulSoup(html_content, 'html.parser')
-    campaign_links = soup.select("a[href*='/cp/?id=']")
+    # 제목이 있는 링크만 선택 (dt.tit 안의 a 태그)
+    campaign_links = soup.select("dt.tit a[href*='/cp/?id=']")
+    
 
     suc_cnt = err_cnt = detail_cnt = rds_cnt = 0
 
